@@ -79,9 +79,19 @@ try:
             dummy.write("Dummy\n")
         Runner.check_output("git add dummyfile.delete.me")
         Runner.check_output(["git", "commit",  "-m",  "'Initial dummy commit'"])
+    if "Changes to be committed" in git_status:
+        print("There are uncommitted changes in the repository. Commit those and try again after that.")
+        exit(1)
 except subprocess.CalledProcessError as e:
     print("Git should be initiated by now. Something went truly south...")
     exit(1)
+
+try:
+    print("Ensuring master branch is checked out")
+    checkout_status = Runner.check_output("git checkout master")
+except subprocess.CalledProcessError as e:
+   print("Checking out master failed. Aborting")
+   raise(e)
 
 repositories = {}
 
@@ -91,8 +101,9 @@ while True:
     repo_name = input("Repository name: ")
     if repo_url.strip():
         while True:
-            if repo_name in repositories:
-                print("Repository name is already in use, please choose a different one: ")
+            check_remotes = Runner.check_output("git remote").decode("utf-8")
+            if repo_name in repositories or repo_name + "\n" in check_remotes:
+                print("Repository name is already taken, please choose a different one: ")
                 repo_name = input("Repository name: ")
             else:
                 break
@@ -120,6 +131,7 @@ for k, v in repositories.items():
 
     print("Moving merged files to a separate directory...")
     movable_files = [x for x in os.listdir(_INITIAL_WD) if x not in initial_content]
+    print(movable_files)
     os.mkdir("{}/{}".format(_INITIAL_WD, k))
     for f in movable_files:
         os.rename("{}/{}".format(_INITIAL_WD, f), "{}/{}/{}".format(_INITIAL_WD, k, f))
